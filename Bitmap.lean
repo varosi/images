@@ -43,7 +43,7 @@ structure Bitmap (PixelT : Type) where
   size : Size
   data : Array PixelT
 
-  valid : data.size = size.width * size.height := by decide
+  valid : data.size = size.width * size.height := by simp
 deriving Repr, DecidableEq
 
 def BitmapRGB8 := Bitmap PixelRGB8
@@ -76,8 +76,8 @@ lemma arrayCoordSize_u32
       hx hy rfl
   simpa [hi] using hlt
 
+-- This is not right way to do it. I think that axiom should not be needed.
 axiom idxFromCoord {i w : ℕ} {x y : UInt32} : i = x.toNat + y.toNat * w
-def idxFromCoord' (x y : UInt32) (w : ℕ) : ℕ := x.toNat + y.toNat * w
 
 def putPixel {PixelT : Type} (img:Bitmap PixelT) (x y : UInt32) (pixel : PixelT)
              (h1 : x.toNat < img.size.width) (h2: y.toNat < img.size.height) :=
@@ -126,8 +126,14 @@ example : (mkBlankBitmap 1 1 aPixel).data = #[aPixel] := by rfl
 
 example (a : PixelRGB8) : mkBlankBitmap 1 1 a = mkBlankBitmap 1 1 a := by rfl
 example : (mkBlankBitmap 1 1 aPixel).data = Array.modify (Array.replicate 1 aPixel) 0 (fun _ => aPixel) := by rfl
-example : mkBlankBitmap 1 1 aPixel = putPixel (mkBlankBitmap 1 1 aPixel') 0 0 aPixel := by rfl
-example : putPixel (mkBlankBitmap 2 2 aPixel) 0 0 aPixel = mkBlankBitmap 2 2 aPixel := by rfl
+
+example : mkBlankBitmap 1 1 aPixel =
+          putPixel (mkBlankBitmap 1 1 aPixel') 0 0 aPixel
+                   (by unfold mkBlankBitmap; simp) (by unfold mkBlankBitmap; simp) := by rfl
+
+example : putPixel (mkBlankBitmap 2 2 aPixel) 0 0 aPixel
+                   (by unfold mkBlankBitmap; simp) (by unfold mkBlankBitmap; simp) =
+          mkBlankBitmap 2 2 aPixel := by rfl
 
 theorem zeroPlus (x : UInt32) : 0 + x = x := by
   simp [zero_add]
@@ -136,9 +142,10 @@ theorem zeroPlus (x : UInt32) : 0 + x = x := by
 
 --lemma pixelIsSameAfterModification (p : aPixel)
 
-example : ∀ w : UInt32, w > 0 → (putPixel (mkBlankBitmap w 1 aPixel) 0 0 aPixel = mkBlankBitmap w 1 aPixel) := by
+example : ∀ w : ℕ → (putPixel (mkBlankBitmap w 1 aPixel) 0 0 aPixel = mkBlankBitmap w 1 aPixel) := by
   intro w h
   simp [mkBlankBitmap, putPixel]
+  sorry
   -- unfold Array.replicate
   /-
   -- ({ toList := List.replicate w.toNat aPixel }.modify 0 fun x ↦ aPixel) =
@@ -159,7 +166,7 @@ theorem Array.getElem_set_self {α : Type u_1}  {xs : Array α}  {i : Nat}  (h :
 theorem Array.set_getElem_self {α : Type u_1}  {xs : Array α}  {i : Nat}  (h : i < xs.size) :
 xs.set i xs[i] h = xs
   -/
-  rw [Array.getElem_modify_self id 0]
+  --rw [Array.getElem_modify_self id 0]
 
 
 /-
@@ -194,7 +201,9 @@ def testBitmap : BitmapRGB8 := {
 #check (PixelRGB.mk 0 0 0)
 #eval mkBlankBitmap 0 0 testPixel
 
-#eval putPixel testBitmap 0 0 ({ r:=1, g:=2, b:=3 })
+#eval putPixel testBitmap 0 0 ({ r:=1, g:=2, b:=3 }) (by unfold testBitmap; simp) (by unfold testBitmap; simp)
+
+end Bitmaps
 
 -- def List.sum [Add α] [OfNat α 0] : List α → α
 -- Fin class for Bitmap?
