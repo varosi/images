@@ -1,4 +1,11 @@
 import Mathlib
+import Init.Data.Array.Lemmas
+import Init.Data.Array.Set
+import Mathlib.Tactic.Linarith
+
+-- Widgets
+import Lean
+open Lean Widget
 
 open System (FilePath)
 open System.Platform
@@ -6,8 +13,8 @@ open System.Platform
 namespace Bitmaps
 
 structure Size where
-  width  : UInt32
-  height : UInt32
+  width  : ℕ
+  height : ℕ
 deriving Repr, BEq, DecidableEq
 
 -------------------------------------------------------------------------------
@@ -32,28 +39,82 @@ def PixelRGB16 := PixelRGB UInt16
 -------------------------------------------------------------------------------
 structure Bitmap (PixelT : Type) where
   mk ::
+
   size : Size
   data : Array PixelT
-deriving Repr, BEq, DecidableEq
+
+  valid : data.size = size.width * size.height := by decide
+deriving Repr, DecidableEq
 
 def BitmapRGB8 := Bitmap PixelRGB8
 
-def putPixel {PixelT : Type} (i:Bitmap PixelT) (x:UInt32) (y:UInt32) (pixel:PixelT) :=
-  { i with data := Array.modify i.data (UInt32.toNat (x + y * i.size.width)) (fun _ => pixel) }
+lemma arrayCoordSize_nat
+    {i x y w h : Nat}
+    (hx : x < w) (hy : y < h) (hi : i = x + y * w) :
+    i < w * h := by
+  subst hi
+  -- 1) use x < w ⇒ x + y*w < w + y*w
+  have hx' : x + y * w < w + y * w := Nat.add_lt_add_right hx _
+  -- 2) rewrite w + y*w = w*(y+1)
+  have hx'' : x + y * w < w * (y + 1) := by
+    simpa [Nat.mul_comm, Nat.mul_succ, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using hx'
+  -- 3) y < h ⇒ y+1 ≤ h ⇒ w*(y+1) ≤ w*h
+  have hy'  : w * (y + 1) ≤ w * h := Nat.mul_le_mul_left _ (Nat.succ_le_of_lt hy)
+  -- 4) chain them
+  exact lt_of_lt_of_le hx'' hy'
+
+lemma arrayCoordSize_u32
+    {i w h : Nat} {x y : UInt32}
+    (hx : x.toNat < w)
+    (hy : y.toNat < h)
+    (hi : i = x.toNat + y.toNat * w) :
+    i < w * h := by
+  -- Apply the Nat lemma to the toNat values
+  have hlt :
+      x.toNat + y.toNat * w < w * h :=
+    arrayCoordSize_nat (i := x.toNat + y.toNat * w)
+      hx hy rfl
+  simpa [hi] using hlt
+
+axiom idxFromCoord {i w : ℕ} {x y : UInt32} : i = x.toNat + y.toNat * w
+def idxFromCoord' (x y : UInt32) (w : ℕ) : ℕ := x.toNat + y.toNat * w
+
+def putPixel {PixelT : Type} (img:Bitmap PixelT) (x y : UInt32) (pixel : PixelT)
+             (h1 : x.toNat < img.size.width) (h2: y.toNat < img.size.height) :=
+
+  let idx := x.toNat + y.toNat * img.size.width
+
+  have inBounds : idx < img.data.size := by
+    rw [img.valid]
+    apply arrayCoordSize_u32
+    case hx =>
+      exact h1
+    case hy =>
+      exact h2
+    case hi =>
+      apply idxFromCoord
+
+  -- Array.size_set
+  let resultArr := Array.set img.data idx pixel inBounds
+
+  have inResInBounds : resultArr.size = img.data.size := by
+    rw [Array.size_set]
+
+  { img with data := resultArr, valid := by rw [inResInBounds, img.valid] }
 
 def getPixel {PixelT : Type} (i:Bitmap PixelT) (x:UInt32) (y:UInt32) :=
-  i.data[ UInt32.toNat (x + y * i.size.width) ]?
+  i.data[ x.toNat + y.toNat * i.size.width ]?
 
-def mkBlankBitmap {RangeT : Type} (w : UInt32) (h : UInt32) (color : PixelRGB RangeT) : Bitmap (PixelRGB RangeT) := {
+def mkBlankBitmap {RangeT : Type} (w h : ℕ) (color : PixelRGB RangeT) : Bitmap (PixelRGB RangeT) := {
     size := { width := w, height := h },
-    data := Array.replicate (UInt32.toNat (w * h)) color
+    data := Array.replicate (w * h) color
   }
 
 class FileWritable (α : Type) where
   write : FilePath -> α -> IO Unit
 
 -------------------------------------------------------------------------------
--- Verification
+-- Verification. Converting tests into proofs.
 -- https://lean-lang.org/theorem_proving_in_lean4/tactics.html
 
 def testPixel : PixelRGB8 := { r:=0, g:=0, b:=0 }
@@ -71,11 +132,34 @@ example : putPixel (mkBlankBitmap 2 2 aPixel) 0 0 aPixel = mkBlankBitmap 2 2 aPi
 theorem zeroPlus (x : UInt32) : 0 + x = x := by
   simp [zero_add]
 
+-- theorem modifyWithSameIsSame (p : aPixel) : Bitmap p
+
+--lemma pixelIsSameAfterModification (p : aPixel)
+
 example : ∀ w : UInt32, w > 0 → (putPixel (mkBlankBitmap w 1 aPixel) 0 0 aPixel = mkBlankBitmap w 1 aPixel) := by
   intro w h
   simp [mkBlankBitmap, putPixel]
-  unfold Array.replicate
-  sorry
+  -- unfold Array.replicate
+  /-
+  -- ({ toList := List.replicate w.toNat aPixel }.modify 0 fun x ↦ aPixel) =
+  --  { toList := List.replicate w.toNat aPixel }
+
+  -- This is only for a single element of an array:
+  -- Array.getElem_modify_self @ Init.Data.Array.Lemmas
+  --    {α : Type u_1} {xs : Array α} {i : ℕ} (f : α → α) (h : i < (xs.modify i f).size) : (xs.modify i f)[i] = f xs[i]
+
+  -- source theorem Array.eq_toArray {α✝ : Type u_1}  {xs : Array α✝}  {as : List α✝}
+
+  theorem Array.getElem_replicate {α : Type u_1}  {n : Nat}  {v : α}  {i : Nat}  (h : i < (replicate n v).size) :
+(replicate n v)[i] = v
+
+theorem Array.getElem_set_self {α : Type u_1}  {xs : Array α}  {i : Nat}  (h : i < xs.size)  {v : α} :
+(xs.set i v h)[i] = v
+
+theorem Array.set_getElem_self {α : Type u_1}  {xs : Array α}  {i : Nat}  (h : i < xs.size) :
+xs.set i xs[i] h = xs
+  -/
+  rw [Array.getElem_modify_self id 0]
 
 
 /-
@@ -117,3 +201,14 @@ def testBitmap : BitmapRGB8 := {
 -- USize (OS bit integer, like C unsigned long)
 -- LinearAlgebra namespace - https://leanprover-community.github.io/mathlib4_docs/Mathlib/LinearAlgebra/AffineSpace/AffineEquiv.html
 -- dbgTraceIfShared
+
+@[widget_module]
+def helloWidget : Widget.Module where
+  javascript := "
+    import * as React from 'react';
+    export default function(props) {
+      const name = props.name || 'world'
+      return React.createElement('p', {}, 'Hello ' + name + '!')
+    }"
+
+#widget helloWidget
