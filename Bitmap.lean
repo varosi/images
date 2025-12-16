@@ -130,9 +130,10 @@ example : mkBlankBitmap 1 1 aPixel =
                    (by unfold mkBlankBitmap; simp) (by unfold mkBlankBitmap; simp) := by rfl
 
 -- Overwritting the pixel at (0,0) of a blank bitmap with the same pixel should yield the same bitmap
-example (w h : ℕ) (hw : 0 < w) (hh : 0 < h) :
-  putPixel (mkBlankBitmap w h aPixel) 0 0 aPixel
-    (by simpa [mkBlankBitmap] using hw) (by simpa [mkBlankBitmap] using hh)
+example (w h : ℕ) (_ : 0 < w) (_ : 0 < h) (x y : UInt32)
+  (hx : x.toNat < w) (hy : y.toNat < h) :
+  putPixel (mkBlankBitmap w h aPixel) x y aPixel
+    (by simpa [mkBlankBitmap] using hx) (by simpa [mkBlankBitmap] using hy)
   = mkBlankBitmap w h aPixel := by
   simp [mkBlankBitmap, putPixel]
 
