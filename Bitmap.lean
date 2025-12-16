@@ -129,7 +129,7 @@ example : mkBlankBitmap 1 1 aPixel =
           putPixel (mkBlankBitmap 1 1 aPixel') 0 0 aPixel
                    (by unfold mkBlankBitmap; simp) (by unfold mkBlankBitmap; simp) := by rfl
 
--- Overwritting the pixel at (0,0) of a blank bitmap with the same pixel should yield the same bitmap
+-- Overwritting any pixel of a blank bitmap with the same pixel should yield the same bitmap
 example (w h : ℕ) (_ : 0 < w) (_ : 0 < h) (x y : UInt32)
   (hx : x.toNat < w) (hy : y.toNat < h) :
   putPixel (mkBlankBitmap w h aPixel) x y aPixel
