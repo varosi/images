@@ -129,9 +129,12 @@ example : mkBlankBitmap 1 1 aPixel =
           putPixel (mkBlankBitmap 1 1 aPixel') 0 0 aPixel
                    (by unfold mkBlankBitmap; simp) (by unfold mkBlankBitmap; simp) := by rfl
 
-example : putPixel (mkBlankBitmap 2 2 aPixel) 0 0 aPixel
-                   (by unfold mkBlankBitmap; simp) (by unfold mkBlankBitmap; simp) =
-          mkBlankBitmap 2 2 aPixel := by rfl
+-- Overwritting the pixel at (0,0) of a blank bitmap with the same pixel should yield the same bitmap
+example (w h : ℕ) (hw : 0 < w) (hh : 0 < h) :
+  putPixel (mkBlankBitmap w h aPixel) 0 0 aPixel
+    (by simpa [mkBlankBitmap] using hw) (by simpa [mkBlankBitmap] using hh)
+  = mkBlankBitmap w h aPixel := by
+  simp [mkBlankBitmap, putPixel]
 
 -- theorem modifyWithSameIsSame (p : aPixel) : Bitmap p
 
@@ -152,19 +155,6 @@ example (w : UInt32) : w = 0 ∨ (putPixel (mkBlankBitmap w 1 aPixel) 0 0 aPixel
     apply (fun (_ : x > 0) => _)
     assumption
     simp [putPixel, Array.modify, Array.modifyM]
--/
-
-
-/-
-theorem putPixel1 (a b : PixelRGB8) : putPixel (mkBlankBitmap 1 1 a) 0 0 b = mkBlankBitmap 1 1 b := by
-  conv =>
-    simp [putPixel]
-    lhs
-    simp [mkBlankBitmap]
-    args
-    rfl
-    rfl
-    done
 -/
 
 def testBitmap : BitmapRGB8 := {
