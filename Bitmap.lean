@@ -1,7 +1,6 @@
-import Mathlib
+import Mathlib.Data.Nat.Basic
 import Init.Data.Array.Lemmas
 import Init.Data.Array.Set
-import Mathlib.Tactic.Linarith
 
 -- Widgets
 import Lean
@@ -133,9 +132,6 @@ example : mkBlankBitmap 1 1 aPixel =
 example : putPixel (mkBlankBitmap 2 2 aPixel) 0 0 aPixel
                    (by unfold mkBlankBitmap; simp) (by unfold mkBlankBitmap; simp) =
           mkBlankBitmap 2 2 aPixel := by rfl
-
-theorem zeroPlus (x : UInt32) : 0 + x = x := by
-  simp [zero_add]
 
 -- theorem modifyWithSameIsSame (p : aPixel) : Bitmap p
 
