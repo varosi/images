@@ -94,7 +94,6 @@ def putPixel {PixelT : Type} (img:Bitmap PixelT) (x y : UInt32) (pixel : PixelT)
     case hi =>
       apply idxFromCoord
 
-  -- Array.size_set
   let resultArr := Array.set img.data idx pixel inBounds
 
   have inResInBounds : resultArr.size = img.data.size := by
@@ -122,7 +121,7 @@ def testPixel : PixelRGB8 := { r:=0, g:=0, b:=0 }
 variable (α : Type) (aPixel aPixel' : PixelRGB α)
 
 example : (mkBlankBitmap 0 0 aPixel).data = #[] := by rfl
-example : (mkBlankBitmap 1 1 aPixel).data = #[aPixel] := by rfl
+example (pixel : PixelRGB α) : (mkBlankBitmap 1 1 pixel).data = #[pixel] := by rfl
 
 example (a : PixelRGB8) : mkBlankBitmap 1 1 a = mkBlankBitmap 1 1 a := by rfl
 example : (mkBlankBitmap 1 1 aPixel).data = Array.modify (Array.replicate 1 aPixel) 0 (fun _ => aPixel) := by rfl
@@ -142,32 +141,11 @@ theorem zeroPlus (x : UInt32) : 0 + x = x := by
 
 --lemma pixelIsSameAfterModification (p : aPixel)
 
-example : ∀ w : ℕ → (putPixel (mkBlankBitmap w 1 aPixel) 0 0 aPixel = mkBlankBitmap w 1 aPixel) := by
-  intro w h
+example (w : ℕ) (hw : 0 < w) :
+    putPixel (mkBlankBitmap w 1 aPixel) 0 0 aPixel
+        (by simpa [mkBlankBitmap] using hw) (by simp [mkBlankBitmap])
+      = mkBlankBitmap w 1 aPixel := by
   simp [mkBlankBitmap, putPixel]
-  sorry
-  -- unfold Array.replicate
-  /-
-  -- ({ toList := List.replicate w.toNat aPixel }.modify 0 fun x ↦ aPixel) =
-  --  { toList := List.replicate w.toNat aPixel }
-
-  -- This is only for a single element of an array:
-  -- Array.getElem_modify_self @ Init.Data.Array.Lemmas
-  --    {α : Type u_1} {xs : Array α} {i : ℕ} (f : α → α) (h : i < (xs.modify i f).size) : (xs.modify i f)[i] = f xs[i]
-
-  -- source theorem Array.eq_toArray {α✝ : Type u_1}  {xs : Array α✝}  {as : List α✝}
-
-  theorem Array.getElem_replicate {α : Type u_1}  {n : Nat}  {v : α}  {i : Nat}  (h : i < (replicate n v).size) :
-(replicate n v)[i] = v
-
-theorem Array.getElem_set_self {α : Type u_1}  {xs : Array α}  {i : Nat}  (h : i < xs.size)  {v : α} :
-(xs.set i v h)[i] = v
-
-theorem Array.set_getElem_self {α : Type u_1}  {xs : Array α}  {i : Nat}  (h : i < xs.size) :
-xs.set i xs[i] h = xs
-  -/
-  --rw [Array.getElem_modify_self id 0]
-
 
 /-
 example (w : UInt32) : w = 0 ∨ (putPixel (mkBlankBitmap w 1 aPixel) 0 0 aPixel = mkBlankBitmap w 1 aPixel) :=
